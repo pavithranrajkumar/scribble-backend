@@ -1,7 +1,5 @@
 import { ApolloServer } from '@apollo/server';
-import { expressMiddleware } from '@apollo/server/express4';
-import express from 'express';
-import cors from 'cors';
+import { startStandaloneServer } from '@apollo/server/standalone';
 import mongoose from 'mongoose';
 import { typeDefs } from './graphql/schemas/index.js';
 import { resolvers } from './graphql/resolvers/index.js';
@@ -12,12 +10,6 @@ import type { Context } from './graphql/context.js';
 
 async function startServer() {
   try {
-    const app = express();
-
-    // Apply middleware
-    app.use(cors());
-    app.use(express.json());
-
     // Create Apollo Server
     const server = new ApolloServer<Context>({
       typeDefs,
@@ -25,30 +17,20 @@ async function startServer() {
       formatError: handleError,
     });
 
-    await server.start();
-
-    // Apply Apollo middleware
-    app.use(
-      '/graphql',
-      cors<cors.CorsRequest>(),
-      express.json(),
-      expressMiddleware(server, {
-        context: async ({ req }) => {
-          const token = req.headers.authorization?.split(' ')[1] || '';
-          const user = await getUser(token);
-          return { user };
-        },
-      })
-    );
-
     // Connect to MongoDB
     await mongoose.connect(environment.mongodbUri);
     console.log('📦 Connected to MongoDB');
 
-    // Start server
-    const httpServer = app.listen(4000, () => {
-      console.log(`🚀 Server ready`); //
+    const { url } = await startStandaloneServer(server, {
+      listen: { port: 4000 },
+      context: async ({ req }) => {
+        const token = req.headers.authorization?.split(' ')[1] || '';
+        const user = await getUser(token);
+        return { user };
+      },
     });
+
+    console.log(`🚀 Server ready at ${url}`);
 
     // Graceful shutdown
     const shutdown = async () => {
@@ -56,7 +38,6 @@ async function startServer() {
       try {
         await server.stop();
         await mongoose.connection.close();
-        await new Promise<void>((resolve) => httpServer.close(() => resolve()));
         process.exit(0);
       } catch (error) {
         console.error('Error during shutdown:', error);
