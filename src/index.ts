@@ -46,8 +46,8 @@ async function startServer() {
     console.log('📦 Connected to MongoDB');
 
     // Start server
-    const httpServer = app.listen(environment.port, () => {
-      console.log(`🚀 Server ready at http://localhost:${environment.port}/graphql`);
+    const httpServer = app.listen(4000, () => {
+      console.log(`🚀 Server ready`); //
     });
 
     // Graceful shutdown
