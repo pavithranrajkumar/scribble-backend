@@ -11,10 +11,11 @@ import type { Context } from './graphql/context.js';
 async function startServer() {
   try {
     // Create Apollo Server
-    const server = new ApolloServer<Context>({
+    const server = new ApolloServer({
       typeDefs,
       resolvers,
       formatError: handleError,
+      introspection: true, // Enable introspection in production
     });
 
     // Connect to MongoDB
@@ -22,8 +23,8 @@ async function startServer() {
     console.log('📦 Connected to MongoDB');
 
     const { url } = await startStandaloneServer(server, {
-      listen: { port: 4000 },
-      context: async ({ req }) => {
+      listen: { port: parseInt(process.env.PORT || '4000') },
+      context: async ({ req }): Promise<Context> => {
         const token = req.headers.authorization?.split(' ')[1] || '';
         const user = await getUser(token);
         return { user };
